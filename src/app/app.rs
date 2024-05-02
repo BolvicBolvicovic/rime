@@ -1,8 +1,4 @@
-use std::{
-    os::fd::{RawFd, FromRawFd},
-    io::{Read, Write},
-};
-use libc::{ftruncate, lseek, off_t, write, SEEK_SET};
+use std::io::{Read, Seek, Write};
 
 use crate::app::undotree::UndoTree;
 
@@ -12,20 +8,10 @@ pub enum CurrentScreenMode {
     Config,
 }
 
-impl CurrentScreenMode {
-    fn unwrap(&self) -> usize {
-        match self {
-            CurrentScreenMode::File(index) => *index,
-            _ => panic!("Try to unwrap an unwrapable mode"),
-        }
-    }
-}
-
 pub struct File {
     handle: std::fs::File,
     pub name: String,
     pub undo_tree: UndoTree,
-    yanke: String,
     saved_state: String,
 }
 
@@ -35,7 +21,6 @@ impl File {
             handle,
             name,
             undo_tree: UndoTree::new(),
-            yanke: String::new(),
             saved_state: String::new(),
         }
     }
@@ -52,6 +37,7 @@ pub struct App {
     pub files: Vec<File>,
     pub current_screen: CurrentScreenMode,
     pub current_editing: CurrentEditing,
+    yanke: String,
 }
 
 impl App {
@@ -60,6 +46,7 @@ impl App {
             files: vec![],
             current_screen: CurrentScreenMode::Main,
             current_editing: CurrentEditing::Selecting,
+            yanke: String::new(),
         }
     }
 
@@ -83,21 +70,28 @@ impl App {
     }
 
     pub fn quit_file(&mut self) -> std::io::Result<()> {
-        let mut i: i32 = if let CurrentScreenMode::File(index) = &self.current_screen {
+        let i: i32 = if let CurrentScreenMode::File(index) = &self.current_screen {
             *index as i32
         } else {-1};
         if i == -1 {
             return Ok(());
         }
-        let mut handle = self.files[TryInto::<usize>::try_into(i).unwrap()].handle.try_clone().unwrap();
-        let data = self.files[TryInto::<usize>::try_into(i).unwrap()].saved_state.to_owned();
+        let i : usize = i.try_into().unwrap();
 
+        let mut handle = self.files[i].handle.try_clone().unwrap();
+        let data = self.files[i].saved_state.to_owned();
+
+        handle.rewind()?;
         handle.write_all(data.as_bytes())?;
         handle.set_len(data.len() as u64)?;
-
-        self.files.remove(i.try_into().unwrap());
-        self.current_screen = if let Some(_file) = self.files.last_mut() {
-            CurrentScreenMode::File(self.files.len() - 1)
+        
+        self.files.remove(i);
+        self.current_screen = if self.files.len() != 0 {
+            if i as i32 -1 > -1 {
+                CurrentScreenMode::File(i - 1)
+            } else {
+                CurrentScreenMode::File(i)
+            }
         } else {
             CurrentScreenMode::Main
         };

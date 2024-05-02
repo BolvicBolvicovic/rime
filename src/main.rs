@@ -1,15 +1,15 @@
 mod app;
-use clap::{command, Arg};
+use clap::{command, Arg, ArgAction};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind}, execute, terminal::{
         disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
         LeaveAlternateScreen,
-    }, ExecutableCommand
+    },
 };
 use ratatui::{
-    backend::Backend, prelude::{CrosstermBackend, Stylize, Terminal}, widgets::Paragraph, Frame
+    backend::Backend, prelude::{CrosstermBackend, Terminal},
 };
-use std::{io::{Write, stderr, Result}, os::fd::{AsRawFd, RawFd}};
+use std::io::{stderr, Result};
 use crate::app::*;
 
 fn init_terminal() -> Result<Terminal<CrosstermBackend<std::io::Stderr>>> {
@@ -21,20 +21,24 @@ fn init_terminal() -> Result<Terminal<CrosstermBackend<std::io::Stderr>>> {
     Ok(terminal)
 }
 
-fn get_handle() -> (Result<std::fs::File>, String) {
+fn get_handle() -> Vec<(Result<std::fs::File>, String)> {
     let matches = command!()
-        .arg(Arg::new("file"))
+        .arg(Arg::new("file").action(ArgAction::Append))
         .get_matches();
-    let args = matches.get_one::<String>("file");
-    if let None = args {
-        return (Err(std::io::Error::from(std::io::ErrorKind::NotFound)), "Not Found".to_owned());
+    let args = matches
+        .get_many::<String>("file")
+        .unwrap_or_default()
+        .map(|v| v.as_str())
+        .collect::<Vec<_>>();
+    let mut vec_files = vec![];
+    for result in args {
+        vec_files.push((std::fs::File::options()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .open(result), result.to_owned()));
     }
-    (std::fs::File::options()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(args.unwrap()),
-    args.unwrap().to_string())
+    vec_files
 }
 
 fn run_app<B: Backend>(
@@ -43,9 +47,6 @@ fn run_app<B: Backend>(
 )-> Result<bool> {
     terminal.draw(|frame| ui(app, frame))?;
     loop {
-        /*if let Event::Key(key) = event::read()? {
-            dbg!(key.code);
-        }*/
         if let Event::Key(key) = event::read()? {
             if key.kind == event::KeyEventKind::Release {
                 continue;
@@ -70,19 +71,15 @@ fn run_app<B: Backend>(
                             },
                         CurrentEditing::Command(_char) => match key.code {
                             KeyCode::Esc => app.current_editing = CurrentEditing::Selecting,
-                            KeyCode::Char('q') => {
-                                match app.quit_file() {
-                                    Ok(_) => return Ok(true),
-                                    Err(e) => dbg!(e.to_string()),
-                                };
-                                return Ok(true);
-                            }
+                            KeyCode::Char('q') => if let Err(e) = app.quit_file() {
+                                dbg!(e);
+                            },
                             KeyCode::Char('w') => {
                                 app.save_file();
                                 app.current_editing = CurrentEditing::Command('w')
                             },
                             _ => (),
-                        }, //TODO:add the char to Command
+                        },
                         CurrentEditing::Selecting => match key.code {
                             KeyCode::Char('i') => {
                                 let text = if let Some(node) = &app.files[index].undo_tree.current {
@@ -108,6 +105,14 @@ fn run_app<B: Backend>(
                                     };
                                     app.current_editing = CurrentEditing::Selecting;
                                 },
+                                KeyCode::Char('T') => {
+                                    app.current_screen = if index as i32 - 1 > - 1 {
+                                        CurrentScreenMode::File(index - 1)
+                                    } else {
+                                        CurrentScreenMode::File(app.files.len() - 1)
+                                    };
+                                    app.current_editing = CurrentEditing::Selecting;
+                                },
                                 _ => app.current_editing = CurrentEditing::Selecting,
                             },
                             _ => app.current_editing = CurrentEditing::Selecting,
@@ -124,9 +129,11 @@ fn run_app<B: Backend>(
 fn main() -> Result<()>{
     let mut terminal = init_terminal()?;
     let mut app = App::new();
-    let (file, name) = get_handle();
-    if file.is_ok() {
-        app.open_file(file.unwrap(), name);
+    let vec_files = get_handle();
+    for (file, name) in vec_files {
+        if file.is_ok() {
+            app.open_file(file.unwrap(), name);
+        }
     }
     let _res = run_app(&mut terminal, &mut app);
 
