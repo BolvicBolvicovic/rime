@@ -1,4 +1,7 @@
-use std::os::fd::RawFd;
+use std::{
+    os::fd::{RawFd, FromRawFd},
+    io::{Read, Write},
+};
 use libc::{ftruncate, lseek, off_t, write, SEEK_SET};
 
 use crate::app::undotree::UndoTree;
@@ -19,15 +22,15 @@ impl CurrentScreenMode {
 }
 
 pub struct File {
-    handle: RawFd,
+    handle: std::fs::File,
     pub name: String,
-    undo_tree: UndoTree,
+    pub undo_tree: UndoTree,
     yanke: String,
     saved_state: String,
 }
 
 impl File {
-    pub fn new(handle: RawFd, name: String) -> File {
+    pub fn new(handle: std::fs::File, name: String) -> File {
         File {
             handle,
             name,
@@ -40,7 +43,7 @@ impl File {
 
 pub enum CurrentEditing {
     Page,
-    Command,
+    Command(char),
     Selecting,
     Listening(char),
 }
@@ -60,18 +63,18 @@ impl App {
         }
     }
 
-    pub fn open_file(&mut self, handle: RawFd, name: String) {
-        for file in &self.files {
-            if handle == file.handle {
-                return;
-            }
-        }
+    pub fn open_file(&mut self, handle: std::fs::File, name: String) {
         let file = File::new(handle, name);
         self.files.push(file);
-        self.current_screen = CurrentScreenMode::File(self.files.len() - 1);
+        let index = self.files.len() - 1;
+        self.current_screen = CurrentScreenMode::File(index);
+        let mut text = String::new();
+        let _ = self.files[index].handle.read_to_string(&mut text);
+        self.files[index].saved_state = text.clone();
+        self.files[index].undo_tree.add_node(text.clone());
     }
 
-    fn save_file(&mut self) {
+    pub fn save_file(&mut self) {
         if let CurrentScreenMode::File(index) = &self.current_screen {
             if let Some(text) = &self.files[*index].undo_tree.show_current_node() {
                 self.files[*index].saved_state = text.clone();
@@ -79,39 +82,20 @@ impl App {
         }
     }
 
-    fn quit_file(&mut self) -> std::io::Result<()> {
-        let (handle, data) = if let CurrentScreenMode::File(index) = &self.current_screen {
-            (self.files[*index].handle, self.files[*index].saved_state.to_owned())
-        } else {(-1, "nil".to_owned())};
-        if handle == -1 || &data == "nil"{
+    pub fn quit_file(&mut self) -> std::io::Result<()> {
+        let mut i: i32 = if let CurrentScreenMode::File(index) = &self.current_screen {
+            *index as i32
+        } else {-1};
+        if i == -1 {
             return Ok(());
         }
-        let offset = unsafe {
-            lseek(handle, 0, SEEK_SET)
-        };
-        if offset == -1 {
-            return Err(std::io::Error::last_os_error());
-        }
+        let mut handle = self.files[TryInto::<usize>::try_into(i).unwrap()].handle.try_clone().unwrap();
+        let data = self.files[TryInto::<usize>::try_into(i).unwrap()].saved_state.to_owned();
 
-        let bytes_written = unsafe {
-            write(handle, data.as_ptr() as *const _, data.len())
-        };
-        if bytes_written == -1 {
-            return Err(std::io::Error::last_os_error());
-        }
-        let truncate = unsafe {
-            ftruncate(handle, data.len() as off_t)
-        };
-        if truncate == -1 {
-            return Err(std::io::Error::last_os_error());
-        }
+        handle.write_all(data.as_bytes())?;
+        handle.set_len(data.len() as u64)?;
 
-        let len = self.files.len();
-        if len == 0 {
-            return Ok(())
-        }
-        self.files.remove(len - 1);
-        
+        self.files.remove(i.try_into().unwrap());
         self.current_screen = if let Some(_file) = self.files.last_mut() {
             CurrentScreenMode::File(self.files.len() - 1)
         } else {
