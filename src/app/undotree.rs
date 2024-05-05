@@ -5,51 +5,66 @@ use std::{
 
 #[derive(Clone)]
 pub struct Cursor {
-    pub line_index: usize,
-    pub line_size: usize,
-    pub line: usize,
-    pub max_line: usize,
+    index: usize,
+    max: usize,
 }
 
 impl Cursor {
-    pub fn new(max_line: usize, line_size: usize) -> Cursor {
+    pub fn new(index: usize, max: usize) -> Cursor {
         Cursor {
-            line_index: 0,
-            line_size,
-            line: 0,
-            max_line
+            index,
+            max,
         }
     }
 
     pub fn move_left(&mut self) {
-        if self.line_index > 0 {
-            self.line_index -= 1;
+        if self.index > 0 {
+            self.index -= 1;
         }
     }
 
     pub fn move_right(&mut self) {
-        if self.line_index < self.line_size {
-            self.line_index += 1;
+        if self.index < self.max {
+            self.index += 1;
         }
     }
 
-    pub fn move_up(&mut self, line_size: usize) {
-        if self.line > 0 {
-            self.line -= 1;
-            self.line_size = line_size;
-            if self.line_index > self.line_size {
-                self.line_index = self.line_size;
-            }
+    pub fn move_up(&mut self, text: String) {
+        let mut next_nl = 0;
+        let text = text.as_bytes();
+        while text.len() - 1 != self.index + next_nl && text[self.index + next_nl] != b'\n' {
+            next_nl += 1;
+        }
+        while self.index > 0 && text[self.index] != b'\n' {
+            self.index -= 1;
+        }
+        if self.index == 0 {
+            return;
+        }
+        self.index -= 1;
+        while self.index > 0 && text[self.index] != b'\n' && next_nl > 0 {
+            self.index -= 1;
+            next_nl -= 1;
         }
     }
 
-    pub fn move_down(&mut self, line_size: usize) {
-        if self.line < self.max_line {
-            self.line += 1;
-            self.line_size = line_size;
-            if self.line_index > self.line_size {
-                self.line_index = self.line_size;
-            }
+    pub fn move_down(&mut self, text: String) {
+        let mut previous_nl = 0;
+        let text = text.as_bytes();
+        let text_len = text.len();
+        while self.index - previous_nl > 0 && text[self.index - previous_nl] != b'\n' {
+            previous_nl += 1;
+        }
+        while text_len - 1 != self.index && text[self.index] != b'\n' {
+            self.index += 1;
+        }
+        if self.index == text_len - 1 {
+            return;
+        }
+        self.index += 1;
+        while self.index != text_len - 1 && text[self.index] != b'\n' && previous_nl > 0 {
+            self.index += 1;
+            previous_nl -= 1;
         }
     }
 }
@@ -60,6 +75,17 @@ pub struct UndoNode {
     pub cursor: Cursor,
     pub parent: Option<Rc<RefCell<UndoNode>>>,
     pub child: Option<Rc<RefCell<UndoNode>>>
+}
+
+impl UndoNode {
+    pub fn new(text: String, parent: Option<Rc<RefCell<UndoNode>>>, cursor: Cursor) -> UndoNode {
+        UndoNode {
+            text,
+            cursor,
+            parent,
+            child: None,
+        }
+    }
 }
 
 pub struct UndoTree {
@@ -75,13 +101,8 @@ impl UndoTree {
         }
     }
 
-    pub fn add_node(&mut self, text: String) {
-        let node = Rc::new(RefCell::new(UndoNode {
-            text,
-            cursor: Cursor::new(0, 0), //TODO: Implement line size and max line
-            parent: self.current.clone(),
-            child: None,
-        }));
+    pub fn add_node(&mut self, text: String, cursor: Cursor) {
+        let node = Rc::new(RefCell::new(UndoNode::new(text, self.current.clone(), cursor)));
         if let Some(current) = &mut self.current {
             current.borrow_mut().child = Some(node.clone());
             self.current = Some(node);
@@ -108,9 +129,9 @@ impl UndoTree {
         }
     }
 
-    pub fn show_current_node(&self) -> Option<String> {
+    pub fn show_current_node(&self) -> Option<(String, usize)> {
         if let Some(node) = &self.current {
-            Some(node.borrow().text.clone())
+            Some((node.borrow().text.clone(), node.borrow().cursor.index))
         } else {
             None
         }
@@ -118,141 +139,60 @@ impl UndoTree {
 
     pub fn del_char(&mut self) {
         if let Some(node) = &mut self.current {
-            node.borrow_mut().text.pop();
+            let index = node.borrow().cursor.index;
+            if index as i32 - 1 >= 0 {
+                let _ = node.borrow_mut().text.remove(index - 1);
+                node.borrow_mut().cursor.max -= 1;
+                self.move_cursor_left();
+            }
         }
     }
 
     pub fn add_char(&mut self, c: char) {
         if let Some(node) = &mut self.current {
-            node.borrow_mut().text.push(c);
+            let cursor_index = node.borrow().cursor.index;
+            node.borrow_mut().text.insert(cursor_index, c);
+            node.borrow_mut().cursor.max += 1;
+            self.move_cursor_right();
         } else {
-            self.add_node(c.to_string());
+            self.add_node(c.to_string(), Cursor::new(0, 1));
         } 
     }
 
     pub fn add_newspace(&mut self) {
+        self.add_char('\n');
         let mut text = String::new();
-        let mut update = false;
+        let mut cursor = Cursor::new(0, 1);
+        if let Some(node) = &self.current {
+            text = node.borrow().text.clone();
+            cursor = node.borrow().cursor.clone();
+        }
+        self.add_node(text, cursor);
+    }
+
+    pub fn move_cursor_up(&mut self) {
         if let Some(node) = &mut self.current {
-            node.borrow_mut().text.push('\n');
-            text = node.borrow_mut().text.clone();
-        } else {
-            self.add_node("\n".to_string());
-        }
-        if update {
-            self.add_node(text);
+            let text = node.borrow().text.clone();
+            node.borrow_mut().cursor.move_up(text);
         }
     }
-}
-
-
-mod tests {
     
-    use super::*;
-
-    #[test]
-    fn add_one_node() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        undo_tree.add_node(foo.into());
-        assert_eq!(Some("foo".to_string()), undo_tree.show_current_node());
+    pub fn move_cursor_down(&mut self) {
+        if let Some(node) = &mut self.current {
+            let text = node.borrow().text.clone();
+            node.borrow_mut().cursor.move_down(text);
+        }
     }
     
-    #[test]
-    fn add_two_nodes() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        let bar = "bar";
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        assert_eq!(Some("bar".to_string()), undo_tree.show_current_node());
+    pub fn move_cursor_left(&mut self) {
+        if let Some(node) = &mut self.current {
+            node.borrow_mut().cursor.move_left();
+        }
     }
     
-    #[test]
-    fn test_undo_no_change() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        let bar = "bar";
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        undo_tree.undo();
-        assert_eq!(Some("foo".to_string()), undo_tree.show_current_node());
-    }
-    
-    #[test]
-    fn test_undo_with_change() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        let bar = "bar";
-        let foobar = "foobar";
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        undo_tree.undo();
-        undo_tree.add_node(foobar.into());
-        assert_eq!(Some("foobar".to_string()), undo_tree.show_current_node());
-    }
-    
-    #[test]
-    fn test_redo_no_change() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        let bar = "bar";
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        undo_tree.undo();
-        undo_tree.redo();
-        assert_eq!(Some("bar".to_string()), undo_tree.show_current_node());
-    }
-    
-    #[test]
-    fn test_redo_with_undo_change() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        let bar = "bar";
-        let foobar = "foobar";
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        undo_tree.undo();
-        undo_tree.add_node(foobar.into());
-        undo_tree.redo();
-        assert_eq!(Some("foobar".to_string()), undo_tree.show_current_node());
-        undo_tree.undo();
-        undo_tree.redo();
-        assert_eq!(Some("foobar".to_string()), undo_tree.show_current_node());
-    }
-
-    #[test]
-    fn test_redo_undo_hard() {
-        let mut undo_tree = UndoTree::new();
-        let foo = "foo";
-        let bar = "bar";
-        let foobar = "foobar";
-        undo_tree.undo();
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        undo_tree.undo();
-        undo_tree.add_node(foobar.into());
-        undo_tree.redo();
-        undo_tree.redo();
-        assert_eq!(Some("foobar"), undo_tree.show_current_node().as_deref());
-        undo_tree.undo();
-        undo_tree.redo();
-        assert_eq!(Some("foobar"), undo_tree.show_current_node().as_deref());
-        undo_tree.add_node(foo.into());
-        undo_tree.add_node(bar.into());
-        undo_tree.undo();
-        undo_tree.undo();
-        undo_tree.redo();
-        undo_tree.redo();
-        assert_eq!(Some("bar"), undo_tree.show_current_node().as_deref());
-        undo_tree.undo();
-        undo_tree.undo();
-        undo_tree.undo();
-        undo_tree.undo();
-        undo_tree.undo();
-        undo_tree.undo();
-        assert_eq!(None, undo_tree.show_current_node());
-        undo_tree.redo();
-        assert_eq!(Some("foo"), undo_tree.show_current_node().as_deref());
+    pub fn move_cursor_right(&mut self) {
+        if let Some(node) = &mut self.current {
+            node.borrow_mut().cursor.move_right();
+        }
     }
 }

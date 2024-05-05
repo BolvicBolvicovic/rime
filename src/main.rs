@@ -1,7 +1,7 @@
 mod app;
 use clap::{command, Arg, ArgAction};
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind}, execute, terminal::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers}, execute, terminal::{
         disable_raw_mode, enable_raw_mode, EnterAlternateScreen,
         LeaveAlternateScreen,
     },
@@ -81,11 +81,15 @@ fn run_app<B: Backend>(
                             _ => (),
                         },
                         CurrentEditing::Selecting => match key.code {
+                            KeyCode::Char('i') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_up(),
+                            KeyCode::Char('k') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_down(),
+                            KeyCode::Char('j') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_left(),
+                            KeyCode::Char('l') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_right(),
                             KeyCode::Char('i') => {
-                                let text = if let Some(node) = &app.files[index].undo_tree.current {
-                                    node.borrow().text.clone()
-                                } else {"".to_owned()};
-                                app.files[index].undo_tree.add_node(text);
+                                let (text, cursor) = if let Some(node) = &app.files[index].undo_tree.current {
+                                    (node.borrow().text.clone(), node.borrow().cursor.clone())
+                                } else {("".to_owned(), Cursor::new(0, 1))};
+                                app.files[index].undo_tree.add_node(text, cursor);
                                 app.current_editing = CurrentEditing::Page;
                             }
                             KeyCode::Char('R') => app.files[index].undo_tree.redo(),

@@ -53,19 +53,28 @@ pub fn ui(app: &App, frame: &mut Frame) {
     frame.render_widget(mode, chunks[2]);
 
     match app.current_screen {
-        CurrentScreenMode::File(index) => {
+       CurrentScreenMode::File(index) => {
             let mut list_items = Vec::<Line>::new();
-            if let Some(current_text) = app.files[index].undo_tree.show_current_node() {
-                let split_text = current_text.split('\n');
-                for (i, line) in split_text.enumerate() {
-                    //TODO: Add a parser that formats the line based on its component and on the
-                    //file type. Maybe look for Line in ratatui.
-                    list_items.push(Line::from(Span::styled(
-                        format!("{} ~ {}", i, line),
-                        Style::default().fg(Color::LightCyan),
-                    )));
+            let mut num_items = Vec::<Line>::new();
+            if let Some((current_text, cursor_index)) = app.files[index].undo_tree.show_current_node() {
+                let lines = current_text.lines();
+                let mut cursor_line_index = 0;
+                let mut found = false;
+                for (num, line) in lines.enumerate() {
+                    let line_len = line.len();
+                    cursor_line_index += line_len;
+                    if cursor_line_index > cursor_index && !found {
+                        num_items.push(Line::from(Span::styled(num.to_string(), Style::default().fg(Color::LightCyan))));
+                        list_items.push(line_to_span(line, Some(line_len - cursor_line_index + cursor_index)));
+                        found = true;
+                    } else {
+                        list_items.push(line_to_span(line, None));
+                        num_items.push(Line::from(Span::styled(num.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)))));
+                    }
                 }
                 let final_text = Text::from(list_items);
+                let final_lines = Text::from(num_items);
+                //TODO: Render line numbers
                 frame.render_widget(final_text, chunks[1]);
             } else {
             };
@@ -73,4 +82,31 @@ pub fn ui(app: &App, frame: &mut Frame) {
         _ => (),
     };
 
+}
+
+fn line_to_span<'a>(
+    line: &'a str, 
+    cursor_index: Option<usize>, 
+) -> Line {
+    let mut formated_line = Vec::new();
+    let mut found = false;
+    for (i, c) in line.chars().enumerate() {
+        if let Some(index) = cursor_index {
+            if index == i && !c.is_ascii_whitespace() {
+                formated_line.push(Span::styled(c.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::LightCyan)));
+                found = true;
+            } else if index == i {
+                formated_line.push(Span::styled(c.to_string(), Style::default().bg(Color::Rgb(183, 65, 14))));
+                found = true;
+            } else {
+                formated_line.push(Span::styled(c.to_string(), Style::default().fg(Color::LightCyan)));
+            }
+        } else {
+            formated_line.push(Span::styled(c.to_string(), Style::default().fg(Color::LightCyan)));
+        }
+    }
+    if !found && cursor_index.is_some() {
+        formated_line.push(Span::styled(" ", Style::default().bg(Color::Rgb(183, 65, 14))));
+    }
+    Line::from(formated_line)
 }

@@ -1,6 +1,6 @@
 use std::io::{Read, Seek, Write};
 
-use crate::app::undotree::UndoTree;
+use crate::{app::undotree::UndoTree, Cursor};
 
 pub enum CurrentScreenMode {
     Main,
@@ -58,12 +58,12 @@ impl App {
         let mut text = String::new();
         let _ = self.files[index].handle.read_to_string(&mut text);
         self.files[index].saved_state = text.clone();
-        self.files[index].undo_tree.add_node(text.clone());
+        self.files[index].undo_tree.add_node(text.clone(), Cursor::new(0, text.len()));
     }
 
     pub fn save_file(&mut self) {
         if let CurrentScreenMode::File(index) = &self.current_screen {
-            if let Some(text) = &self.files[*index].undo_tree.show_current_node() {
+            if let Some((text, _)) = &self.files[*index].undo_tree.show_current_node() {
                 self.files[*index].saved_state = text.clone();
            }
         }
