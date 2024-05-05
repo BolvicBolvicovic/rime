@@ -64,11 +64,12 @@ pub fn ui(app: &App, frame: &mut Frame) {
                     let line_len = line.len();
                     cursor_line_index += line_len;
                     if cursor_line_index > cursor_index && !found {
+                        let index = cursor_index + line_len - cursor_line_index;
                         num_items.push(Line::from(Span::styled(num.to_string(), Style::default().fg(Color::LightCyan))));
-                        list_items.push(line_to_span(line, Some(line_len - cursor_line_index + cursor_index)));
+                        list_items.push(into_spans(line, Some(index)));
                         found = true;
                     } else {
-                        list_items.push(line_to_span(line, None));
+                        list_items.push(into_spans(line, None));
                         num_items.push(Line::from(Span::styled(num.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)))));
                     }
                 }
@@ -84,7 +85,7 @@ pub fn ui(app: &App, frame: &mut Frame) {
 
 }
 
-fn line_to_span<'a>(
+fn into_spans<'a>(
     line: &'a str, 
     cursor_index: Option<usize>, 
 ) -> Line {
