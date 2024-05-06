@@ -30,10 +30,13 @@ impl Cursor {
     }
 
     pub fn move_up(&mut self, text: String) {
-        let mut next_nl = 0;
+        let mut previous_nl = 0;
         let text = text.as_bytes();
-        while text.len() - 1 != self.index + next_nl && text[self.index + next_nl] != b'\n' {
-            next_nl += 1;
+        if self.max == self.index {
+            self.index -= 1;
+        }
+        while self.index - previous_nl > 0 && text[self.index - previous_nl] != b'\n' {
+            previous_nl += 1;
         }
         while self.index > 0 && text[self.index] != b'\n' {
             self.index -= 1;
@@ -42,29 +45,39 @@ impl Cursor {
             return;
         }
         self.index -= 1;
-        while self.index > 0 && text[self.index] != b'\n' && next_nl > 0 {
+        let mut line_len = 0; 
+        while self.index - line_len > 0 && text[self.index - line_len] != b'\n' {
+            line_len += 1;
+        }
+        while self.index > 0 && text[self.index] != b'\n' && (line_len as i32 - previous_nl as i32) >= 0 {
             self.index -= 1;
-            next_nl -= 1;
+            line_len -= 1;
         }
     }
 
     pub fn move_down(&mut self, text: String) {
         let mut previous_nl = 0;
         let text = text.as_bytes();
-        let text_len = text.len();
+        if self.index == self.max {
+            self.index -= 1;
+        }
         while self.index - previous_nl > 0 && text[self.index - previous_nl] != b'\n' {
             previous_nl += 1;
         }
-        while text_len - 1 != self.index && text[self.index] != b'\n' {
+        while self.max - 1 > self.index && text[self.index] != b'\n' {
             self.index += 1;
         }
-        if self.index == text_len - 1 {
+        if self.index == self.max - 1 {
             return;
         }
         self.index += 1;
-        while self.index != text_len - 1 && text[self.index] != b'\n' && previous_nl > 0 {
+        let mut line_len = 0; 
+        while self.index + line_len < self.max - 1 && text[self.index + line_len] != b'\n' {
+            line_len += 1;
+        }
+        while self.index < self.max - 1 && text[self.index] != b'\n' && (previous_nl as i32 - line_len as i32) <= 0 {
             self.index += 1;
-            previous_nl -= 1;
+            line_len += 1;
         }
     }
 }

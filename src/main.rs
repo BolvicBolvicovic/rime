@@ -63,6 +63,10 @@ fn run_app<B: Backend>(
                     match app.current_editing {
                         CurrentEditing::Page if key.kind == KeyEventKind::Press => 
                             match key.code {
+                                KeyCode::Char('i') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_up(),
+                                KeyCode::Char('k') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_down(),
+                                KeyCode::Char('j') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_left(),
+                                KeyCode::Char('l') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_right(),
                                 KeyCode::Esc => app.current_editing = CurrentEditing::Selecting,
                                 KeyCode::Backspace => app.files[index].undo_tree.del_char(),
                                 KeyCode::Enter => app.files[index].undo_tree.add_newspace(),
