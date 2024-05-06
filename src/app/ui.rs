@@ -61,7 +61,7 @@ pub fn ui(app: &App, frame: &mut Frame) {
                 let mut cursor_line_index = 0;
                 let mut found = false;
                 for (num, line) in lines.enumerate() {
-                    let line_len = line.len();
+                    let line_len = line.len() + 1;
                     cursor_line_index += line_len;
                     if cursor_line_index > cursor_index && !found {
                         let index = cursor_index + line_len - cursor_line_index;
