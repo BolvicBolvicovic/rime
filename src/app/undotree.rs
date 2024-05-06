@@ -72,10 +72,7 @@ impl Cursor {
         }
         self.index += 1;
         let mut line_len = 0; 
-        while self.index + line_len < self.max - 1 && text[self.index + line_len] != b'\n' {
-            line_len += 1;
-        }
-        while self.index < self.max - 1 && text[self.index] != b'\n' && (previous_nl as i32 - line_len as i32) <= 0 {
+        while self.index < self.max - 1 && text[self.index] != b'\n' && (previous_nl as i32 - line_len as i32) > 0 {
             self.index += 1;
             line_len += 1;
         }
