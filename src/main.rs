@@ -60,7 +60,7 @@ fn run_app<B: Backend>(
 
                 },
                 CurrentScreenMode::File(index) => {
-                    match app.current_editing {
+                    match &app.current_editing {
                         CurrentEditing::Page if key.kind == KeyEventKind::Press => 
                             match key.code {
                                 KeyCode::Char('i') if key.modifiers == KeyModifiers::ALT => app.files[index].undo_tree.move_cursor_up(),
@@ -73,15 +73,11 @@ fn run_app<B: Backend>(
                                 KeyCode::Char(c) => app.files[index].undo_tree.add_char(c),
                                 _ => (),
                             },
-                        CurrentEditing::Command(_char) => match key.code {
+                        CurrentEditing::Command(string) => match key.code {
                             KeyCode::Esc => app.current_editing = CurrentEditing::Selecting,
-                            KeyCode::Char('q') => if let Err(e) = app.quit_file() {
-                                dbg!(e);
-                            },
-                            KeyCode::Char('w') => {
-                                app.save_file();
-                                app.current_editing = CurrentEditing::Command('w')
-                            },
+                            KeyCode::Enter => app.execute_command(string.clone()),
+                            KeyCode::Backspace => app.current_editing = CurrentEditing::Command(string[..(if string.len() > 0 {string.len() - 1} else {0})].to_owned()),
+                            KeyCode::Char(c) => app.current_editing = CurrentEditing::Command(string.to_owned() + &c.to_string()),
                             _ => (),
                         },
                         CurrentEditing::Selecting => match key.code {
@@ -98,7 +94,7 @@ fn run_app<B: Backend>(
                             }
                             KeyCode::Char('R') => app.files[index].undo_tree.redo(),
                             KeyCode::Char('u') => app.files[index].undo_tree.undo(),
-                            KeyCode::Char(':') => app.current_editing = CurrentEditing::Command(' '),
+                            KeyCode::Char(':') => app.current_editing = CurrentEditing::Command("".to_string()),
                             _ => if let KeyCode::Char(c) = key.code {
                                 app.current_editing = CurrentEditing::Listening(c)
                             },

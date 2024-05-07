@@ -34,8 +34,8 @@ pub fn ui(app: &App, frame: &mut Frame) {
         .borders(Borders::ALL)
         .style(Style::default());
 
-    let mode_str = match app.current_screen {
-        CurrentScreenMode::File(_) => "File : ".to_owned() + &(match app.current_editing {
+    let mode_str = match &app.current_screen {
+        CurrentScreenMode::File(_) => "File : ".to_owned() + &(match &app.current_editing {
             CurrentEditing::Page => "Page".to_owned(),
             CurrentEditing::Command(c) => format!("Command : {}", c),
             CurrentEditing::Selecting => "Selecting".to_owned(),
@@ -57,6 +57,10 @@ pub fn ui(app: &App, frame: &mut Frame) {
             let mut list_items = Vec::<Line>::new();
             let mut num_items = Vec::<Line>::new();
             if let Some((current_text, cursor_index)) = app.files[index].undo_tree.show_current_node() {
+                let sub_layout = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Percentage(5), Constraint::Percentage(95)])
+                    .split(chunks[1]);
                 let lines = current_text.lines();
                 let mut cursor_line_index = 0;
                 let mut found = false;
@@ -75,8 +79,8 @@ pub fn ui(app: &App, frame: &mut Frame) {
                 }
                 let final_text = Text::from(list_items);
                 let final_lines = Text::from(num_items);
-                //TODO: Render line numbers
-                frame.render_widget(final_text, chunks[1]);
+                frame.render_widget(final_lines, sub_layout[0]);
+                frame.render_widget(final_text, sub_layout[1]);
             } else {
             };
         },

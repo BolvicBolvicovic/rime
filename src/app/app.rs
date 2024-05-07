@@ -28,7 +28,7 @@ impl File {
 
 pub enum CurrentEditing {
     Page,
-    Command(char),
+    Command(String),
     Selecting,
     Listening(char),
 }
@@ -97,5 +97,35 @@ impl App {
         };
 
         Ok(())
+    }
+
+    pub fn execute_command(&mut self, command: String) {
+        let mut command = command.split_ascii_whitespace();
+        match command.next() {
+            Some("tabnew") => {
+                let name : String = command.next().unwrap_or("").to_string();
+                let handle = std::fs::File::options()
+                        .read(true)
+                        .write(true)
+                        .create(true)
+                        .open(&name).unwrap();
+                self.files.push(File::new(handle, name));
+                self.current_screen = CurrentScreenMode::File(self.files.len() - 1);
+            },
+            Some(chars) => {
+                for c in chars.chars() {
+                    match c {
+                        'w' => self.save_file(),
+                        'q' => if let Ok(_) = self.quit_file() {
+                            self.current_editing = CurrentEditing::Selecting;
+                            return;
+                        },
+                        _ => (),
+                    }
+                }
+            }
+            _ => (),
+        }
+        self.current_editing = CurrentEditing::Selecting;
     }
 }
