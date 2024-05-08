@@ -69,12 +69,12 @@ pub fn ui(app: &App, frame: &mut Frame) {
                     cursor_line_index += line_len;
                     if cursor_line_index > cursor_index && !found {
                         let index = cursor_index + line_len - cursor_line_index;
-                        num_items.push(Line::from(Span::styled(num.to_string(), Style::default().fg(Color::LightCyan))));
+                        num_items.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::LightCyan))));
                         list_items.push(into_spans(line, Some(index)));
                         found = true;
                     } else {
                         list_items.push(into_spans(line, None));
-                        num_items.push(Line::from(Span::styled(num.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)))));
+                        num_items.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::Rgb(183, 65, 14)))));
                     }
                 }
                 let final_text = Text::from(list_items);

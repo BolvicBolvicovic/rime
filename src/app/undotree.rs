@@ -32,8 +32,10 @@ impl Cursor {
     pub fn move_up(&mut self, text: String) {
         let mut previous_nl = 0;
         let text = text.as_bytes();
-        if self.max == self.index {
+        if self.index == self.max {
             self.index -= 1;
+        } else if self.index + 1 < self.max {
+            self.index += 1;
         }
         while self.index - previous_nl > 0 && text[self.index - previous_nl] != b'\n' {
             previous_nl += 1;
@@ -58,11 +60,17 @@ impl Cursor {
     pub fn move_down(&mut self, text: String) {
         let mut previous_nl = 0;
         let text = text.as_bytes();
-        if self.index == self.max {
+        if self.index > 0 {
             self.index -= 1;
         }
         while self.index - previous_nl > 0 && text[self.index - previous_nl] != b'\n' {
             previous_nl += 1;
+        }
+        if self.index as i32 - previous_nl as i32 == 0 {
+            previous_nl += 1;
+        }
+        if text[self.index] == b'\n' {
+            self.index += 1;
         }
         while self.max - 1 > self.index && text[self.index] != b'\n' {
             self.index += 1;
