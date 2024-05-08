@@ -109,18 +109,33 @@ impl App {
                         .write(true)
                         .create(true)
                         .open(&name).unwrap();
-                self.files.push(File::new(handle, name));
-                self.current_screen = CurrentScreenMode::File(self.files.len() - 1);
+                self.open_file(handle, name);
             },
             Some(chars) => {
-                for c in chars.chars() {
-                    match c {
-                        'w' => self.save_file(),
-                        'q' => if let Ok(_) = self.quit_file() {
-                            self.current_editing = CurrentEditing::Selecting;
-                            return;
-                        },
-                        _ => (),
+                if let Some(_) = chars.find('a') {
+                    let files_len = self.files.len();
+                    for _file in 0..files_len {
+                        for c in chars.chars() {
+                            match c {
+                                'w' => self.save_file(),
+                                'q' => if let Ok(_) = self.quit_file() {
+                                    self.current_editing = CurrentEditing::Selecting;
+                                    break;
+                                },
+                                _ => (),
+                            }
+                        }
+                    }
+                } else  {
+                    for c in chars.chars() {
+                        match c {
+                            'w' => self.save_file(),
+                            'q' => if let Ok(_) = self.quit_file() {
+                                self.current_editing = CurrentEditing::Selecting;
+                                return;
+                            },
+                            _ => (),
+                        }
                     }
                 }
             }
