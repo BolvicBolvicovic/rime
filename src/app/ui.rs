@@ -2,6 +2,8 @@ use ratatui::{layout::{Constraint, Direction, Layout}, prelude::Span, style::{Co
 
 use crate::{app::App, CurrentScreenMode, CurrentEditing};
 
+use super::treesitter::Tree;
+
 pub fn ui(app: &App, frame: &mut Frame) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -54,33 +56,41 @@ pub fn ui(app: &App, frame: &mut Frame) {
 
     match app.current_screen {
        CurrentScreenMode::File(index) => {
-            let mut list_items = Vec::<Line>::new();
-            let mut num_items = Vec::<Line>::new();
             if let Some((current_text, cursor_index)) = app.files[index].undo_tree.show_current_node() {
                 let sub_layout = Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([Constraint::Percentage(5), Constraint::Percentage(95)])
                     .split(chunks[1]);
-                let lines = current_text.lines();
-                let mut cursor_line_index = 0;
-                let mut found = false;
-                for (num, line) in lines.enumerate() {
-                    let line_len = line.len() + 1;
-                    cursor_line_index += line_len;
-                    if cursor_line_index > cursor_index && !found {
-                        let index = cursor_index + line_len - cursor_line_index;
-                        num_items.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::LightCyan))));
-                        list_items.push(into_spans(line, Some(index)));
-                        found = true;
-                    } else {
-                        list_items.push(into_spans(line, None));
-                        num_items.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::Rgb(183, 65, 14)))));
+                if let None = app.files[index].name.rfind(".rs") {
+                    let mut list_items = Vec::<Line>::new();
+                    let mut num_items = Vec::<Line>::new();
+                    let lines = current_text.lines();
+                    let mut cursor_line_index = 0;
+                    let mut found = false;
+                    for (num, line) in lines.enumerate() {
+                        let line_len = line.len() + 1;
+                        cursor_line_index += line_len;
+                        if cursor_line_index > cursor_index && !found {
+                            let index = cursor_index + line_len - cursor_line_index;
+                            num_items.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::LightCyan))));
+                            list_items.push(into_spans(line, Some(index)));
+                            found = true;
+                        } else {
+                            list_items.push(into_spans(line, None));
+                            num_items.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::Rgb(183, 65, 14)))));
+                        }
                     }
+                    let final_text = Text::from(list_items);
+                    let final_lines = Text::from(num_items);
+                    frame.render_widget(final_lines, sub_layout[0]);
+                    frame.render_widget(final_text, sub_layout[1]);
+                } else {
+                    let tree = Tree::new(&current_text, cursor_index);
+                    let line_num = tree.into_numtext();
+                    let lines = tree.into_linetext();
+                    frame.render_widget(Text::from(line_num), sub_layout[0]);
+                    frame.render_widget(Text::from(lines), sub_layout[1]);
                 }
-                let final_text = Text::from(list_items);
-                let final_lines = Text::from(num_items);
-                frame.render_widget(final_lines, sub_layout[0]);
-                frame.render_widget(final_text, sub_layout[1]);
             } else {
             };
         },
