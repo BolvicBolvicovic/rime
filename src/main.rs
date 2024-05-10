@@ -1,3 +1,5 @@
+#![feature(str_split_whitespace_remainder)]
+#![feature(let_chains)]
 mod app;
 use clap::{command, Arg, ArgAction};
 use crossterm::{
