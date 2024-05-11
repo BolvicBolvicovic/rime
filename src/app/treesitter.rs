@@ -1,32 +1,20 @@
 use ratatui::{style::{Color, Style, Stylize}, text::{Line, Span, Text}};
 
-pub enum AstDefinition {
-    Keyword,
-    Variable,
-    Function,
-    Macro,
-    Type,
-    StringStyle,
-    Trait,
-    Constant,
-    Lifetime,
-    SelfKeyWord,
-    Unknown,
-}
-
 pub struct Word <'a>{
-    line_num: usize,
     spans: Vec<Span<'a>>,
-    definition: AstDefinition,
 }
 
 impl <'a> Word<'a> {
-    pub fn new<'b>(word: &'b str, line_num: usize, cursor_index: Option<usize>) -> Word {
+    pub fn new<'b>(word: &'b str, _line_num: usize, cursor_index: Option<usize>) -> Word {
         let mut spans = vec![];
-        let definition = AstDefinition::Unknown;
         if let Some(c) = cursor_index {
             match word {
-                "match" | "let" | "pub" | "fn" | "enum" | "struct" | "const" | "+" | "=" | "*" | "-" | "/" => {
+                "match"  | "let"   | "pub"    | "fn"     | "enum"     | "struct" | "const" |
+                "mut"    | "ref"   | "return" | "break"  | "static"   | "Self"   | "self"  |
+                "super"  | "trait" | "type"   | "unsafe" | "use"      | "async"  | "where" |
+                "dyn"    | "while" | "as"     | "await"  | "continue" | "crate"  | "else"  |
+                "extern" | "if"    | "in"     | "loop"   | "impl"     | "for"    | "mod"   |
+                "test"   | ".."    => {
                     let iterator = word.to_string();
                     for (i, ch) in iterator.chars().enumerate() {
                         if i == c {
@@ -36,29 +24,92 @@ impl <'a> Word<'a> {
                         }
                     }
                 },
-                _ => {
+                "false" | "true" | "Some" | "None" | "Ok" | "Err" => { 
                     let iterator = word.to_string();
                     for (i, ch) in iterator.chars().enumerate() {
                         if i == c {
-                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::LightCyan)));
+                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::LightMagenta)));
                         } else {
-                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::LightCyan)));
+                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::LightMagenta)));
+                        }
+                    }
+                },
+                pattern if pattern.starts_with("&'") || pattern.starts_with('\'') => {
+                    let iterator = word.to_string();
+                    for (i, ch) in iterator.chars().enumerate() {
+                        if i == c {
+                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::Yellow)));
+                        } else {
+                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Yellow)));
+                        }
+                    }
+                },
+                pattern if pattern.ends_with('!') => {
+                    let iterator = word.to_string();
+                    for (i, ch) in iterator.chars().enumerate() {
+                        if i == c {
+                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::Blue).bold()));
+                        } else {
+                            spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Blue).bold()));
+                        }
+                    }
+                },
+                _ => {
+                    let iterator = word.to_string();
+                    for (i, ch) in iterator.chars().enumerate() {
+                        match ch {
+                        '{' | '}' | '(' | ')' | '[' | ']' | '.' | ';' | ':' | ',' =>  if i == c {
+                                spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::White)));
+                            } else {
+                                spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::White)));
+                            },
+                        '+' | '=' | '*' | '-' | '/' | '&' | '<' | '>' | '#' | '?' | '|' => if i == c {
+                                spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::LightYellow)));
+                            } else {
+                                spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::LightYellow)));
+                            },
+                        _ => if i == c {
+                                spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(183, 65, 14)).bg(Color::LightCyan)));
+                            } else {
+                                spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::LightCyan)));
+                            },
                         }
                     }
                 },
             }
         } else {
             match word {
-                "match" | "let" | "pub" | "fn" | "enum" | "struct" | "const" | "+" | "=" | "*" | "-" | "/" => {
-                    spans.push(Span::styled(word, Style::default().fg(Color::LightYellow).bold()));
+                "match"  | "let"   | "pub"    | "fn"     | "enum"     | "struct" | "const" |
+                "mut"    | "ref"   | "return" | "break"  | "static"   | "Self"   | "self"  |
+                "super"  | "trait" | "type"   | "unsafe" | "use"      | "async"  | "where" |
+                "dyn"    | "while" | "as"     | "await"  | "continue" | "crate"  | "else"  |
+                "extern" | "if"    | "in"     | "loop"   | "impl"     | "for"    | "mod"   |
+                "test"   | ".."    => {
+                    spans.push(Span::styled(word.to_string(), Style::default().fg(Color::LightYellow).bold()));
                 },
-                _ => spans.push(Span::styled(word, Style::default().fg(Color::LightCyan))),
+                "false" | "true" | "Some" | "None" | "Ok" | "Err" => { 
+                    spans.push(Span::styled(word.to_string(), Style::default().fg(Color::LightMagenta)));
+                },
+                pattern if pattern.starts_with("&'") || pattern.starts_with('\'') => {
+                    spans.push(Span::styled(word.to_string(), Style::default().fg(Color::Yellow)));
+                },
+                pattern if pattern.ends_with('!') => {
+                    spans.push(Span::styled(word.to_string(), Style::default().fg(Color::Blue).bold()));
+                },
+                _ => {
+                    let iterator = word.to_string();
+                    for ch in iterator.chars() {
+                        match ch {
+                        '{' | '}' | '(' | ')' | '[' | ']' | '.' | ';' | ':' | ',' => spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::White))),
+                        '+' | '=' | '*' | '-' | '/' | '&' | '<' | '>' | '#' | '?' | '|' => spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::LightYellow))),
+                        _ => spans.push(Span::styled(ch.to_string(), Style::default().fg(Color::LightCyan))),
+                        }
+                    }
+                },
             }
         }
         Word {
-            line_num,
             spans,
-            definition,
         }
     }
 }
@@ -81,7 +132,7 @@ impl <'a> Tree<'a> {
             cursor_line_index += line_len;
             if cursor_line_index > cursor_index && !found {
                 let index = cursor_index + line_len - cursor_line_index;
-                line_num.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::LightCyan))));
+                line_num.push(Line::from(Span::styled((num + 1).to_string(), Style::default().fg(Color::LightCyan).bold())));
                 lines.push(Tree::<'a>::build_line(line, num, Some(index)));
                 found = true;
             } else {
@@ -106,24 +157,35 @@ impl <'a> Tree<'a> {
     fn build_line(line: &'a str, line_num: usize, index: Option<usize>) -> Line {
         let mut split_line = line.split_whitespace();
         let mut into_spans = vec![];
-        let line_len = line.len();
-        let mut previous_word_index = 1;
+        let mut previous_word_index = 0;
+        let mut found = false;
         while let Some(word) = split_line.next() {
-            let word_index = line_len - split_line.remainder().unwrap_or("").len() - word.len();
+            let word_index = line[previous_word_index..].find(word).unwrap();
             let word_len = word.len();
-            for i in 0..(word_index - previous_word_index) {
-                if let Some(c) = index && previous_word_index + i - 1 == c {
+            for i in 0..word_index {
+                if let Some(c) = index && previous_word_index + i == c {
                     into_spans.push(Span::styled(" ", Style::default().bg(Color::Rgb(183, 65, 14))));
                 }
                 else {
                     into_spans.push(Span::styled(" ", Style::default()));
                 }
             }
-            let c_index = if let Some(i) = index && word_index as i32 + word_len as i32 - i as i32 + 1 >= 0 {Some(word_index + i - 1)} else {None};
-            previous_word_index = word_len + word_index;
+            let c_index = if let Some(cli) = index && !found {
+                let cwi = cli as i32 - previous_word_index as i32;
+                if cwi >= word_index as i32 && cwi < (word_index + word_len) as i32 {
+                    found = true;
+                    Some((cwi - word_index as i32).try_into().unwrap())
+                } else { None }
+            } else { None };
+            previous_word_index += word_len + word_index;
             let word = Word::new(word, line_num, c_index);
             for span in word.spans {
                 into_spans.push(span);
+            }
+        }
+        if let Some(cli) = index {
+            if cli == line.len() {
+                into_spans.push(Span::styled(" ", Style::default().bg(Color::Rgb(183, 65, 14))));
             }
         }
         Line::from(into_spans)
