@@ -1,4 +1,4 @@
-use ratatui::{layout::{Constraint, Direction, Layout}, prelude::Span, style::{Color, Style, Styled}, text::{Line, Text}, widgets::{Block, BorderType, Borders, Paragraph}, Frame};
+use ratatui::{layout::{Constraint, Direction, Layout}, prelude::Span, style::{Color, Style, Styled}, text::{Line, Text}, widgets::{Block, BorderType, Borders, Paragraph, Wrap}, Frame};
 
 use crate::{app::App, CurrentScreenMode, CurrentEditing};
 
@@ -89,8 +89,17 @@ pub fn ui(app: &App, frame: &mut Frame) {
                     let tree = Tree::new(&current_text, cursor_index);
                     let line_num = tree.into_numtext();
                     let lines = tree.into_linetext();
-                    frame.render_widget(Text::from(line_num), sub_layout[0]);
-                    frame.render_widget(Text::from(lines), sub_layout[1]);
+                    let mut cursor_line = 0;
+                    for (i, c) in current_text.chars().enumerate() {
+                        if c == '\n' {
+                            cursor_line += 1;
+                        }
+                        if i == cursor_index {
+                            break;
+                        }
+                    }
+                    frame.render_widget(Paragraph::new(Text::from(line_num)).scroll((cursor_line, 0)), sub_layout[0]);
+                    frame.render_widget(Paragraph::new(Text::from(lines)).scroll((cursor_line, 0)), sub_layout[1]);
                 }
             } else {
             };
