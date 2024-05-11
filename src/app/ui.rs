@@ -1,4 +1,4 @@
-use ratatui::{layout::{Constraint, Direction, Layout}, prelude::Span, style::{Color, Style, Styled}, text::{Line, Text}, widgets::{Block, Borders, Paragraph}, Frame};
+use ratatui::{layout::{Constraint, Direction, Layout}, prelude::Span, style::{Color, Style, Styled}, text::{Line, Text}, widgets::{Block, BorderType, Borders, Paragraph}, Frame};
 
 use crate::{app::App, CurrentScreenMode, CurrentEditing};
 
@@ -34,6 +34,7 @@ pub fn ui(app: &App, frame: &mut Frame) {
     
     let mode_block = Block::default()
         .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
         .style(Style::default());
 
     let mode_str = match &app.current_screen {
