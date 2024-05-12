@@ -98,7 +98,7 @@ pub fn ui(app: &App, frame: &mut Frame) {
                             break;
                         }
                     }
-                    frame.render_widget(Paragraph::new(Text::from(line_num)).scroll((cursor_line, 0)), sub_layout[0]);
+                    frame.render_widget(Paragraph::new(Text::from(line_num)).scroll((cursor_line, 0)).centered(), sub_layout[0]);
                     frame.render_widget(Paragraph::new(Text::from(lines)).scroll((cursor_line, 0)), sub_layout[1]);
                 }
             } else {
