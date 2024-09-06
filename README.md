@@ -21,3 +21,16 @@ cargo run -- [FILE_NAME...]
 # Note that you can use clap feature for help
 cargo run --help
 ```
+
+There are certain shortcuts that are worth to note here:
+- Alt + [i | j | k | l] work like arrows
+- u for undo
+- Shift + r for redo
+- esc for switching to select mode
+- i for swithching to page mode (write)
+- : for switching to command mode (only available in select mode)
+
+Available commands:
+- w for write
+- q for quite (need to be used to quit app in main mode)
+- a for all
